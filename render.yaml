@@ -1,0 +1,43 @@
+services:
+  # -------------------------------------------------------------
+  # Backend: Python FastAPI Web Service
+  # -------------------------------------------------------------
+  - type: web
+    name: meet2action-backend
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: LLM_PROVIDER
+        value: demo
+      - key: DATABASE_URL
+        value: sqlite:///./meetings.db
+      - key: CORS_ORIGINS
+        value: "*"
+
+  # -------------------------------------------------------------
+  # Frontend: React + Vite Static Site (or deploy on Vercel)
+  # -------------------------------------------------------------
+  - type: web
+    name: meet2action-frontend
+    runtime: static
+    plan: free
+    region: oregon
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: meet2action-backend
+          property: host

@@ -1,0 +1,21 @@
+# Node & Frontend
+frontend/node_modules/
+node_modules/
+.DS_Store
+
+# Python & Backend
+__pycache__/
+*.py[cod]
+*$py.class
+backend/__pycache__/
+.pytest_cache/
+*.sqlite3
+
+# Binaries & Temporary files
+cloudflared.exe
+*.log
+
+# Sensitive environments
+.env
+backend/.env
+!*.example
