@@ -1,12 +1,14 @@
-// Determine API base URL dynamically:
-// In production: Uses VITE_API_URL environment variable if defined (e.g. https://your-backend.onrender.com/api)
-// In development / proxy: Falls back seamlessly to relative '/api'
 const envApiUrl = (import.meta.env.VITE_API_URL || '').trim();
 let API_BASE = '/api';
 
 if (envApiUrl) {
-  const cleanBase = envApiUrl.endsWith('/') ? envApiUrl.slice(0, -1) : envApiUrl;
-  API_BASE = cleanBase.endsWith('/api') ? cleanBase : `${cleanBase}/api`;
+  // Prevent accidentally baking localhost into production builds
+  if (import.meta.env.PROD && (envApiUrl.includes('localhost') || envApiUrl.includes('127.0.0.1'))) {
+    API_BASE = '/api';
+  } else {
+    const cleanBase = envApiUrl.endsWith('/') ? envApiUrl.slice(0, -1) : envApiUrl;
+    API_BASE = cleanBase.endsWith('/api') ? cleanBase : `${cleanBase}/api`;
+  }
 }
 
 async function request(endpoint, options = {}) {

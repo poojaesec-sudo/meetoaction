@@ -1,5 +1,6 @@
 import hashlib
 import re
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -140,8 +141,15 @@ def demo_login(db: Session = Depends(get_db)):
         "user": user
     }
 
+from ..auth_deps import get_current_user_optional
+
 @router.get("/me", response_model=UserResponse)
-def get_current_user(db: Session = Depends(get_db)):
+def get_current_user(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    if current_user:
+        return current_user
     user = db.query(User).first()
     if not user:
         user = User(

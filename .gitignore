@@ -10,6 +10,7 @@ __pycache__/
 backend/__pycache__/
 .pytest_cache/
 *.sqlite3
+*.db-journal
 
 # Binaries & Temporary files
 cloudflared.exe
@@ -17,5 +18,9 @@ cloudflared.exe
 
 # Sensitive environments
 .env
+.env.*
+!.env.example
+!.env.production
 backend/.env
-!*.example
+frontend/.env
+frontend/.env.local

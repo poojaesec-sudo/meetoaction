@@ -1,139 +1,125 @@
-# 🚀 Meet2Action AI — Production Deployment Guide
+# 🚀 Meet2Action AI — Permanent Production Deployment Guide
 
-This guide details how **Meet2Action AI** is configured, built, and deployed to a publicly accessible production URL for demonstration.
+This guide provides simple, step-by-step instructions to permanently deploy **Meet2Action AI** to production so it is accessible worldwide via:
+
+**🌐 https://meet2action.in** and **https://www.meet2action.in**
+
+> [!IMPORTANT]
+> This deployment runs **24/7 in the cloud** on high-availability infrastructure.
+> It does **NOT** depend on `localhost`, Vite dev server, Python terminals, Cloudflare temporary tunnels, or your laptop being switched on.
 
 ---
 
-## 🌐 1. Live Public URLs (Ready to Demo Now)
+## 🏗️ Production Architecture Overview
 
-The full-stack application is currently running live and accessible worldwide over high-speed HTTPS:
+```
+User Browser
+     │
+     ▼
+https://meet2action.in  /  https://www.meet2action.in
+     │
+     ▼
+Frontend: React 19 / Vite SPA (Vercel CDN or Render Static Site)
+     │  (API requests to /api/...)
+     ▼
+Backend: Python 3.11 + FastAPI + Uvicorn (Render Web Service)
+     │
+     ▼
+Database: Persistent PostgreSQL (Render Managed DB / Neon / Supabase)
+```
 
-| Component | Production URL | Description |
-| :--- | :--- | :--- |
-| **Frontend Web App** | **[https://site-conditions-decision-applied.trycloudflare.com](https://site-conditions-decision-applied.trycloudflare.com)** | Complete React 19 / Vite Dark-Mode SPA (connects to live backend) |
-| **Backend API** | **[https://things-albums-reid-ata.trycloudflare.com](https://things-albums-reid-ata.trycloudflare.com)** | FastAPI REST Services |
-| **API Health Check** | **[https://things-albums-reid-ata.trycloudflare.com/api/health](https://things-albums-reid-ata.trycloudflare.com/api/health)** | Real-time health status endpoint |
-| **Swagger API Docs** | **[https://things-albums-reid-ata.trycloudflare.com/docs](https://things-albums-reid-ata.trycloudflare.com/docs)** | Interactive OpenAPI Documentation |
+---
+
+## ⚡ Option 1: 1-Click Render Blueprint (Simplest & Recommended)
+
+This option deploys the **Frontend**, **FastAPI Backend**, and **Persistent PostgreSQL Database** automatically together using the repository's [`render.yaml`](file:///render.yaml).
+
+### Step 1: Push Code to GitHub
+1. Open **GitHub Desktop** on your computer.
+2. Select your repository: `hackathon` (`poojaesec-sudo/hackathon`).
+3. Commit all changes (e.g. `Production deployment setup`) and click **Push origin**.
+
+### Step 2: Deploy on Render
+1. Open your browser and go to: **[dashboard.render.com](https://dashboard.render.com)**
+2. Sign in or create a free account (you can sign in with your GitHub account).
+3. Click the **"New +"** button in the top navigation bar.
+4. Select **"Blueprint"**.
+5. Connect your GitHub repository: `poojaesec-sudo/hackathon`.
+6. Render will automatically detect [`render.yaml`](file:///render.yaml) and list:
+   - **`meet2action-db`**: Persistent PostgreSQL database
+   - **`meet2action-backend`**: FastAPI Python Web Service
+   - **`meet2action-frontend`**: React Static Web App
+7. Click **"Apply"** or **"Create Blueprint Instance"**.
+8. Render will provision the database, build the backend, and deploy the frontend. This takes about 2–3 minutes.
+
+---
+
+## 🌐 Custom Domain Configuration: `meet2action.in`
+
+Once deployed, link your custom domain (`meet2action.in`) to the frontend:
+
+### In Render (or Vercel):
+1. In your hosting dashboard (e.g., Render `meet2action-frontend` or Vercel project), go to **Settings** → **Custom Domains**.
+2. Click **"Add Custom Domain"**.
+3. Enter:
+   - `meet2action.in`
+   - `www.meet2action.in`
+4. The dashboard will display the DNS records you need to add at your domain registrar.
+
+### In Your Domain Registrar (GoDaddy, Namecheap, Hostinger, Cloudflare, etc.):
+Go to your domain DNS management page and add the following standard DNS records:
+
+| Type | Name / Host | Target / Points To | TTL | Purpose |
+| :--- | :--- | :--- | :--- | :--- |
+| **A** | `@` (root) | Provided by your host (e.g. Render `216.24.57.1` or Vercel `76.76.21.21`) | Automatic / 300 | Routes `meet2action.in` |
+| **CNAME** | `www` | Provided by your host (e.g. `meet2action-frontend.onrender.com` or `cname.vercel-dns.com`) | Automatic / 300 | Routes `www.meet2action.in` |
 
 > [!NOTE]
-> **Zero Password / Zero Interstitial Screen**:
-> Unlike Localtunnel or ngrok, these Cloudflare Tunnel URLs require **no IP passwords**, **no captcha**, and **no warning bypass screens**. The link opens directly in any browser on desktop, tablet, or mobile.
+> Free SSL/TLS (HTTPS) certificates are provisioned automatically by Render and Vercel via Let's Encrypt within a few minutes after the DNS records propagate.
 
 ---
 
-## 🏗️ 2. Architectural Structure Identified
+## 🔒 Production Environment Variables Reference
 
-```
-hackathon/
-├── frontend/                     # React 18 + Vite 5 + Tailwind CSS SPA
-│   ├── dist/                     # Optimized production bundle (387 kB gzip: 105 kB)
-│   ├── src/
-│   │   ├── services/api.js       # Dynamic API client (supports VITE_API_URL or relative /api)
-│   │   ├── pages/                # LoginPage, DashboardPage, TasksPage, AddMeetingPage, etc.
-│   │   └── components/           # Navbar, Sidebar, Badges, StatCards, TaskModals
-│   ├── vercel.json               # Vercel SPA routing rewrite rules
-│   └── package.json              # npm scripts (dev, build, preview)
-│
-├── backend/                      # Python 3.11 + FastAPI + SQLAlchemy ORM
-│   ├── app/
-│   │   ├── main.py               # FastAPI server entrypoint, CORS, static SPA mount
-│   │   ├── database.py           # SQLite / PostgreSQL engine with cloud URI compatibility
-│   │   ├── models.py             # User, Meeting, ActionItem, Decision models
-│   │   ├── schemas.py            # Pydantic v2 validation models
-│   │   ├── seed.py               # Auto-seed initial demo dataset
-│   │   ├── routes/               # auth, meetings, tasks, accountability, insights
-│   │   └── services/             # ai_service (LLM dispatcher) & nlp_service (NER engine)
-│   ├── requirements.txt          # Python dependencies
-│   ├── Procfile                  # Platform web process start command
-│   └── meetings.db               # SQLite persistent database file
-│
-├── render.yaml                   # 1-Click Render Cloud Blueprint
-├── Dockerfile                    # Container definition for unified full-stack hosting
-├── Procfile                      # Root web launch command
-└── test_e2e.py                   # Automated end-to-end integration test suite
-```
+| Variable | Recommended Value | Description |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | Render auto-wires PostgreSQL connection string | Persistent storage for users, meetings, and tasks |
+| `LLM_PROVIDER` | `demo` (or `gemini` / `openai`) | `demo` uses fast built-in heuristic NLP (0 cost, no API key required) |
+| `GEMINI_API_KEY` | *(Optional)* | Only if `LLM_PROVIDER=gemini` |
+| `OPENAI_API_KEY` | *(Optional)* | Only if `LLM_PROVIDER=openai` |
+| `CORS_ORIGINS` | `https://meet2action.in,https://www.meet2action.in` | Allowed cross-origin frontend domains |
+| `PORT` | Managed automatically by Render (`10000` / `$PORT`) | Server listening port |
 
 ---
 
-## ⚙️ 3. Production Optimizations Implemented
+## 🧪 Post-Deployment Verification Checklist
 
-1. **No Hard-Coded Localhost**:
-   - In `frontend/src/services/api.js`, the API base URL is resolved dynamically:
-     ```javascript
-     const envApiUrl = (import.meta.env.VITE_API_URL || '').trim();
-     let API_BASE = '/api';
-     if (envApiUrl) {
-       const cleanBase = envApiUrl.endsWith('/') ? envApiUrl.slice(0, -1) : envApiUrl;
-       API_BASE = cleanBase.endsWith('/api') ? cleanBase : `${cleanBase}/api`;
-     }
-     ```
-   - When deployed together on a single host or proxy, requests route seamlessly to `/api`.
-   - When deployed split across Vercel and Render, `VITE_API_URL` directs traffic to the backend domain.
+After your deployment is live at `https://meet2action.in`:
 
-2. **Unified Single-Port Serving**:
-   - In `backend/app/main.py`, FastAPI detects and mounts the built `frontend/dist/` directory:
-     - Serves all API endpoints at `/api/...`
-     - Serves client-side SPA routes (`/dashboard`, `/tasks`, `/meetings`, etc.) with `index.html` fallback.
-     - Guarantees zero CORS mismatches and zero proxy latency.
-
-3. **CORS Hardening**:
-   - Configured in `main.py` with multi-origin support and `CORS_ORIGINS` environment variable parsing.
-
-4. **Zero-Config Offline AI & Demo Mode**:
-   - Default `LLM_PROVIDER=demo` extracts decisions and action items using regex and rule-based NER without requiring paid external API keys.
-
----
-
-## 🚀 4. Permanent Cloud Hosting Setup (Vercel + Render / Railway)
-
-If you wish to deploy permanent URLs connected to your own GitHub repository:
-
-### Option A: Unified Deploy on Render (Simplest — 1 URL)
-1. Push this repository to your GitHub account (`git push`).
-2. Go to **[dashboard.render.com](https://dashboard.render.com)** → **New** → **Blueprint**.
-3. Connect your GitHub repository. Render will automatically read `render.yaml` and provision:
-   - **Backend Web Service**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-   - **Database**: SQLite `meetings.db`
-4. Render gives you one permanent URL: `https://meet2action-ai.onrender.com`.
-
-### Option B: Split Deploy (Frontend on Vercel + Backend on Render)
-1. **Backend on Render**:
-   - New **Web Service** → Connect repo → Root directory: `backend`.
-   - Build Command: `pip install -r requirements.txt`.
-   - Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
-   - Note your backend URL: e.g. `https://meet2action-backend.onrender.com`.
-2. **Frontend on Vercel**:
-   - Go to **[vercel.com](https://vercel.com)** → **Add New Project** → Import repo.
-   - Root directory: `frontend`.
-   - Framework preset: `Vite`.
-   - Environment Variable:
-     - Name: `VITE_API_URL`
-     - Value: `https://meet2action-backend.onrender.com/api`
-   - Click **Deploy**. Vercel gives you: `https://meet2action.vercel.app`.
-
----
-
-## 🧪 5. Demonstration Workflow for Judges
-
-1. Open **[https://tidy-nights-taste.loca.lt](https://tidy-nights-taste.loca.lt)**.
-2. Click **"Continue with Demo (Poojasri T)"** for one-click access.
-3. **Executive Dashboard**: Inspect KPIs, stacked status bars, priority breakdown, and overdue task alerts.
-4. **Add Meeting**:
-   - Click **"Add Meeting"** in the sidebar.
-   - Click **"Load Sample Meeting"** to populate the transcript.
-   - Click **"Analyze Meeting with AI"** to see live NLP extraction of decisions, assignees, and deadlines.
-   - Click **"Confirm & Save to Workspace"** (watch celebration confetti).
-5. **Action Item Tracker ("Tasks")**:
-   - Toggle between **Table View** and **Kanban Board**.
-   - Move tasks across columns or use the progress slider.
-6. **Accountability Scorecard**:
-   - View per-member completion rates and status tags (`Top Performer`, `On Track`).
-7. **AI Insights**:
-   - Review productivity trends, workload distribution, and actionable recommendations.
-
----
-
-## ⚠️ 6. Hosting Considerations & Limitations
-
-- **Localtunnel Sessions**: The localtunnel link runs through your active terminal session. If your machine sleeps or the process terminates, the link disconnects.
-- **SQLite Persistence on Free Serverless**: On ephemeral platforms like Vercel Serverless Functions, SQLite files reset between cold starts. For permanent zero-cost persistence in the cloud, Render persistent disks, Railway volumes, or Supabase/Neon PostgreSQL (`DATABASE_URL=postgresql://...`) can be attached with zero code changes.
+1. **Visit Domain**: Open `https://meet2action.in` in your browser. Verify the green padlock (HTTPS).
+2. **Register a Fresh User**:
+   - Click **Create an account**.
+   - Enter your name, email, and password.
+   - Click **Create Account & Launch Workspace**.
+3. **Verify Zero-State Workspace**:
+   - Total Meetings: **0**
+   - Action Items: **0**
+   - Pending Tasks: **0**
+   - Completion Rate: **0%**
+   - Verify that no sample meetings or fake data appear.
+4. **Add and Analyze a Meeting**:
+   - Click **Add Meeting**.
+   - Paste a meeting transcript or click *Load Sample Meeting*.
+   - Click **Analyze Meeting with AI**.
+   - Review the extracted tasks, assignees, deadlines, and decisions.
+   - Click **Confirm & Save to Workspace**.
+5. **Verify Real-Time Updates**:
+   - Check the **Dashboard**: Total Meetings becomes 1, tasks count updates.
+   - Check **Tasks**: All extracted action items appear in both Table and Kanban views.
+   - Check **Accountability**: Per-person scorecard reflects the new tasks.
+   - Check **AI Insights**: Productivity telemetry updates.
+6. **Data Isolation Test**:
+   - Log out.
+   - Register a second account with a different email.
+   - Verify the second account starts completely from 0 and cannot see the first account's data.
+   - Log into the Demo account (one-click demo) and verify the demo data remains intact and separate.
