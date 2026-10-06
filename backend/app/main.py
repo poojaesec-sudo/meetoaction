@@ -11,7 +11,7 @@ load_dotenv()
 
 from .database import engine, Base, get_db
 from .seed import seed_database
-from .routes import auth, meetings, tasks, accountability, insights
+from .routes import auth, meetings, tasks, action_items, team, ai, accountability, insights
 
 # Initialize SQLite tables
 Base.metadata.create_all(bind=engine)
@@ -27,14 +27,16 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(
-    title="AI Meeting-to-Accountability System API",
-    description="Backend REST API for AI meeting summarization, decision extraction, action item tracking, and team accountability.",
+    title="Meet2Action AI API",
+    description="Backend REST API for AI meeting management, notes summarization, action item extraction, team collaboration, and accountability.",
     version="1.0.0",
     lifespan=lifespan
 )
 
-# Enable dynamic CORS for frontend development and production deployed domains
-cors_env = os.getenv("CORS_ORIGINS", "")
+# Enable dynamic CORS for frontend development, Vercel deployments, and custom production domains
+frontend_url_env = os.getenv("FRONTEND_URL", "")
+cors_origins_env = os.getenv("CORS_ORIGINS", "")
+
 allowed_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -44,14 +46,14 @@ allowed_origins = [
     "http://127.0.0.1:3000",
     "https://meet2action.in",
     "https://www.meet2action.in",
-    "http://meet2action.in",
-    "http://www.meet2action.in",
 ]
-if cors_env:
-    for o in cors_env.split(","):
-        clean_origin = o.strip()
-        if clean_origin and clean_origin not in allowed_origins:
-            allowed_origins.append(clean_origin)
+
+for env_val in [frontend_url_env, cors_origins_env]:
+    if env_val:
+        for o in env_val.split(","):
+            clean_origin = o.strip().rstrip("/")
+            if clean_origin and clean_origin not in allowed_origins:
+                allowed_origins.append(clean_origin)
 
 app.add_middleware(
     CORSMiddleware,
@@ -62,21 +64,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register API Routers
-app.include_router(auth.router, prefix="/api")
-app.include_router(meetings.router, prefix="/api")
-app.include_router(tasks.router, prefix="/api")
-app.include_router(accountability.router, prefix="/api")
-app.include_router(insights.router, prefix="/api")
+# Register API Routers under both /api and root prefixes for maximum client compatibility
+routers = [
+    auth.router,
+    meetings.router,
+    action_items.router,
+    tasks.router,
+    team.router,
+    ai.router,
+    accountability.router,
+    insights.router,
+]
+
+for r in routers:
+    app.include_router(r, prefix="/api")
+    app.include_router(r)
 
 @app.get("/api/health")
 @app.get("/health")
 def health_check():
     return {
         "status": "healthy",
-        "service": "AI Meeting-to-Accountability API",
+        "service": "Meet2Action AI API",
         "version": "1.0.0"
     }
+
 
 @app.post("/api/seed")
 def reseed_database(db: Session = Depends(get_db)):

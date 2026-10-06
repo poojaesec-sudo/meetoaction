@@ -1,19 +1,17 @@
 from sqlalchemy.orm import Session
-from .models import User, Meeting, ActionItem, Decision, DiscussionPoint
+from .models import User, Meeting, ActionItem, Decision, DiscussionPoint, TeamMember
 
 def seed_database(db: Session, force_reset: bool = False):
     """
-    Populates SQLite with realistic demo data, including the exact sample meeting:
-    'Project review meeting. Poojasri will prepare the presentation by October 8.
-     Rithanya will complete the dataset preparation by October 6.
-     Poojitha will test the model by October 10.
-     The team decided to use Python and FastAPI for the prototype.'
+    Populates SQLite with realistic demo data, including meetings, action items,
+    users, and team members.
     """
     if force_reset:
         db.query(ActionItem).delete()
         db.query(Decision).delete()
         db.query(DiscussionPoint).delete()
         db.query(Meeting).delete()
+        db.query(TeamMember).delete()
         db.query(User).delete()
         db.commit()
 
@@ -54,14 +52,63 @@ def seed_database(db: Session, force_reset: bool = False):
     db.add_all([lead_user, user2, user3, user4])
     db.commit()
 
+    # Seed Team Members
+    team_members = [
+        TeamMember(
+            user_id=lead_user.id,
+            name="Poojasri T",
+            email="poojasri@team.io",
+            role="Team Lead / Product Owner",
+            status="Active",
+            avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=Poojasri"
+        ),
+        TeamMember(
+            user_id=lead_user.id,
+            name="Rithanya S",
+            email="rithanya@team.io",
+            role="Data Engineer",
+            status="In Meeting",
+            avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=Rithanya"
+        ),
+        TeamMember(
+            user_id=lead_user.id,
+            name="Poojitha K",
+            email="poojitha@team.io",
+            role="ML & QA Engineer",
+            status="Available",
+            avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=Poojitha"
+        ),
+        TeamMember(
+            user_id=lead_user.id,
+            name="Karthik M",
+            email="karthik@team.io",
+            role="Fullstack Developer",
+            status="Active",
+            avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=Karthik"
+        ),
+        TeamMember(
+            user_id=lead_user.id,
+            name="Aravind R",
+            email="aravind@team.io",
+            role="Cloud & DevOps Architect",
+            status="Away",
+            avatar="https://api.dicebear.com/7.x/avataaars/svg?seed=Aravind"
+        ),
+    ]
+    db.add_all(team_members)
+    db.commit()
+
     # Meeting 1: Requirement 15 Exact Sample Meeting
     m1 = Meeting(
+        user_id=lead_user.id,
         title="Project Review & Prototype Alignment",
         date="2026-10-04",
         participants="Poojasri, Rithanya, Poojitha",
+        agenda="1. Sprint review and deliverables status\n2. Architecture alignment on backend and prototype\n3. Task allocation and timeline check",
         transcript="Project review meeting. Poojasri will prepare the presentation by October 8. Rithanya will complete the dataset preparation by October 6. Poojitha will test the model by October 10. The team decided to use Python and FastAPI for the prototype.",
         summary="Project Review focused on project alignment, task delegation, and technical decisions. Key responsibilities were assigned to Poojasri, Rithanya, and Poojitha across 3 action items. Primary decision made: Use Python and FastAPI for the prototype."
     )
+
     db.add(m1)
     db.commit()
     db.refresh(m1)

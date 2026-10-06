@@ -22,7 +22,8 @@ class Meeting(Base):
     title = Column(String(255), nullable=False)
     date = Column(String(50), nullable=False)
     participants = Column(Text, default="")  # comma-separated string
-    transcript = Column(Text, nullable=False)
+    agenda = Column(Text, default="")
+    transcript = Column(Text, nullable=False)  # Notes / transcript
     summary = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -69,3 +70,16 @@ class DiscussionPoint(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     meeting = relationship("Meeting", back_populates="discussion_points")
+
+class TeamMember(Base):
+    __tablename__ = "team_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, default=1)
+    name = Column(String(100), nullable=False)
+    email = Column(String(120), nullable=False)
+    role = Column(String(100), default="Team Member")
+    status = Column(String(50), default="Active")  # Active, In Meeting, Away, Available
+    avatar = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+

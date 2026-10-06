@@ -1,17 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { api } from './services/api';
+import {
+  DEFAULT_MEETINGS,
+  DEFAULT_TASKS,
+  DEFAULT_TEAM,
+  DEFAULT_STATS,
+  DEFAULT_ACCOUNTABILITY,
+  DEFAULT_INSIGHTS
+} from './services/demoData';
 import { Sidebar } from './components/Sidebar';
 import { Navbar } from './components/Navbar';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { PortalPage } from './pages/PortalPage';
 import { AddMeetingPage } from './pages/AddMeetingPage';
+import { ActionItemsPage } from './pages/ActionItemsPage';
 import { TasksPage } from './pages/TasksPage';
+import { TeamPage } from './pages/TeamPage';
 import { AccountabilityPage } from './pages/AccountabilityPage';
 import { MeetingsPage } from './pages/MeetingsPage';
 import { InsightsPage } from './pages/InsightsPage';
 import { SettingsPage } from './pages/SettingsPage';
 
-const VALID_TABS = ['dashboard', 'meetings', 'add-meeting', 'tasks', 'accountability', 'insights', 'settings'];
+const VALID_TABS = [
+  'dashboard',
+  'portal',
+  'meetings',
+  'add-meeting',
+  'action-items',
+  'tasks',
+  'team',
+  'accountability',
+  'insights',
+  'settings'
+];
 
 function parseInitialRoute() {
   const path = (window.location.pathname || '').replace(/^\/+|\/+$/g, '').toLowerCase();
@@ -81,12 +103,13 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Data States
-  const [stats, setStats] = useState(null);
-  const [meetings, setMeetings] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [accountability, setAccountability] = useState(null);
-  const [insights, setInsights] = useState(null);
+  // Data States with rich instant demo defaults
+  const [stats, setStats] = useState(DEFAULT_STATS);
+  const [meetings, setMeetings] = useState(DEFAULT_MEETINGS);
+  const [tasks, setTasks] = useState(DEFAULT_TASKS);
+  const [teamMembers, setTeamMembers] = useState(DEFAULT_TEAM);
+  const [accountability, setAccountability] = useState(DEFAULT_ACCOUNTABILITY);
+  const [insights, setInsights] = useState(DEFAULT_INSIGHTS);
   const [loading, setLoading] = useState(false);
 
   // Selected meeting for detailed drawer/modal
@@ -96,22 +119,24 @@ export function App() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [statsData, meetingsData, tasksData, accData, insightsData] =
+      const [statsData, meetingsData, tasksData, teamData, accData, insightsData] =
         await Promise.all([
           api.getDashboardStats().catch(() => null),
-          api.getMeetings().catch(() => []),
-          api.getTasks().catch(() => []),
+          api.getMeetings().catch(() => null),
+          api.getActionItems().catch(() => null),
+          api.getTeam().catch(() => null),
           api.getAccountability().catch(() => null),
           api.getAIInsights().catch(() => null),
         ]);
 
       if (statsData) setStats(statsData);
-      if (meetingsData) setMeetings(meetingsData);
-      if (tasksData) setTasks(tasksData);
+      if (meetingsData && meetingsData.length > 0) setMeetings(meetingsData);
+      if (tasksData && tasksData.length > 0) setTasks(tasksData);
+      if (teamData && teamData.length > 0) setTeamMembers(teamData);
       if (accData) setAccountability(accData);
       if (insightsData) setInsights(insightsData);
     } catch (err) {
-      console.error('Error fetching workspace data:', err);
+      console.error('Error fetching workspace data, relying on local state:', err);
     } finally {
       setLoading(false);
     }
@@ -143,42 +168,101 @@ export function App() {
       const detail = await api.getMeeting(id);
       setSelectedMeetingDetail(detail);
     } catch (err) {
-      console.error('Failed to load meeting details:', err);
+      // Local fallback lookup
+      const found = meetings.find((m) => m.id === id);
+      if (found) {
+        setSelectedMeetingDetail(found);
+      }
+    }
+  };
+
+  // Meeting Mutations
+  const handleCreateMeeting = async (meetingData) => {
+    try {
+      const created = await api.createMeeting(meetingData);
+      setMeetings((prev) => [created, ...prev]);
+      fetchData();
+    } catch (err) {
+      console.warn('API error creating meeting, persisting in state:', err);
+      const localMeeting = {
+        id: Date.now(),
+        ...meetingData,
+        created_at: new Date().toISOString(),
+        action_items_count: 0,
+        completion_rate: 0
+      };
+      setMeetings((prev) => [localMeeting, ...prev]);
+    }
+  };
+
+  const handleUpdateMeeting = async (id, updates) => {
+    try {
+      const updated = await api.updateMeeting(id, updates);
+      setMeetings((prev) => prev.map((m) => (m.id === id ? updated : m)));
+      if (selectedMeetingDetail && selectedMeetingDetail.id === id) {
+        setSelectedMeetingDetail(updated);
+      }
+      fetchData();
+    } catch (err) {
+      console.warn('API error updating meeting, updating locally:', err);
+      setMeetings((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, ...updates } : m))
+      );
+    }
+  };
+
+  const handleDeleteMeeting = async (id) => {
+    try {
+      await api.deleteMeeting(id);
+      setMeetings((prev) => prev.filter((m) => m.id !== id));
+      setSelectedMeetingDetail(null);
+      fetchData();
+    } catch (err) {
+      console.warn('API error deleting meeting, removing locally:', err);
+      setMeetings((prev) => prev.filter((m) => m.id !== id));
+      setSelectedMeetingDetail(null);
     }
   };
 
   // Task Mutations
   const handleUpdateTask = async (id, updates) => {
     try {
-      const updated = await api.updateTask(id, updates);
-      // Optimistically update in local state
+      const updated = await api.updateActionItem(id, updates);
       setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
-      // Also update inside selected meeting detail if open
       if (selectedMeetingDetail) {
         setSelectedMeetingDetail((prev) => ({
           ...prev,
           action_items: prev.action_items.map((a) => (a.id === id ? updated : a)),
         }));
       }
-      // Refresh aggregates
       fetchData();
     } catch (err) {
-      console.error('Error updating task:', err);
+      console.warn('API error updating task, updating locally:', err);
+      setTasks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
+      );
     }
   };
 
   const handleCreateTask = async (taskData) => {
     try {
-      await api.createTask(taskData);
+      const created = await api.createActionItem(taskData);
+      setTasks((prev) => [created, ...prev]);
       fetchData();
     } catch (err) {
-      console.error('Error creating task:', err);
+      console.warn('API error creating task, adding locally:', err);
+      const localTask = {
+        id: Date.now(),
+        ...taskData,
+        created_at: new Date().toISOString()
+      };
+      setTasks((prev) => [localTask, ...prev]);
     }
   };
 
   const handleDeleteTask = async (id) => {
     try {
-      await api.deleteTask(id);
+      await api.deleteActionItem(id);
       setTasks((prev) => prev.filter((t) => t.id !== id));
       if (selectedMeetingDetail) {
         setSelectedMeetingDetail((prev) => ({
@@ -188,7 +272,8 @@ export function App() {
       }
       fetchData();
     } catch (err) {
-      console.error('Error deleting task:', err);
+      console.warn('API error deleting task, removing locally:', err);
+      setTasks((prev) => prev.filter((t) => t.id !== id));
     }
   };
 
@@ -196,20 +281,10 @@ export function App() {
     await handleUpdateTask(id, { status: 'Completed', progress: 100 });
   };
 
-  const handleDeleteMeeting = async (id) => {
-    try {
-      await api.deleteMeeting(id);
-      setSelectedMeetingDetail(null);
-      fetchData();
-    } catch (err) {
-      console.error('Error deleting meeting:', err);
-    }
-  };
-
   const handleGlobalSearch = (val) => {
     setGlobalSearch(val);
-    if (val && currentTab !== 'tasks') {
-      setTab('tasks');
+    if (val && currentTab !== 'action-items') {
+      setTab('action-items');
     }
   };
 
@@ -281,6 +356,16 @@ export function App() {
             />
           )}
 
+          {currentTab === 'portal' && (
+            <PortalPage
+              currentUser={currentUser}
+              setTab={setTab}
+              tasks={tasks}
+              meetings={meetings}
+              onQuickCompleteTask={handleQuickCompleteTask}
+            />
+          )}
+
           {currentTab === 'meetings' && (
             <MeetingsPage
               meetings={meetings}
@@ -290,6 +375,8 @@ export function App() {
               selectedMeetingDetail={selectedMeetingDetail}
               onCloseDetail={() => setSelectedMeetingDetail(null)}
               onDeleteMeeting={handleDeleteMeeting}
+              onCreateMeeting={handleCreateMeeting}
+              onUpdateMeeting={handleUpdateMeeting}
               onUpdateTask={handleUpdateTask}
             />
           )}
@@ -303,6 +390,17 @@ export function App() {
             />
           )}
 
+          {currentTab === 'action-items' && (
+            <ActionItemsPage
+              tasks={tasks}
+              teamMembers={teamMembers}
+              meetings={meetings}
+              onUpdateTask={handleUpdateTask}
+              onCreateTask={handleCreateTask}
+              onDeleteTask={handleDeleteTask}
+            />
+          )}
+
           {currentTab === 'tasks' && (
             <TasksPage
               tasks={tasks}
@@ -311,6 +409,14 @@ export function App() {
               onCreateTask={handleCreateTask}
               onDeleteTask={handleDeleteTask}
               setTab={setTab}
+            />
+          )}
+
+          {currentTab === 'team' && (
+            <TeamPage
+              teamMembers={teamMembers}
+              setTab={setTab}
+              onRefreshTeam={fetchData}
             />
           )}
 

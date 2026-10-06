@@ -122,17 +122,27 @@ class MeetingCreate(BaseModel):
     title: str
     date: str
     participants: Optional[str] = ""
+    agenda: Optional[str] = ""
     transcript: str
     summary: Optional[str] = ""
     discussion_points: Optional[List[str]] = []
     decisions: Optional[List[str]] = []
     action_items: Optional[List[ActionItemBase]] = []
 
+class MeetingUpdate(BaseModel):
+    title: Optional[str] = None
+    date: Optional[str] = None
+    participants: Optional[str] = None
+    agenda: Optional[str] = None
+    transcript: Optional[str] = None
+    summary: Optional[str] = None
+
 class MeetingResponse(BaseModel):
     id: int
     title: str
     date: str
     participants: str
+    agenda: Optional[str] = ""
     summary: str
     created_at: datetime
     action_items_count: int = 0
@@ -149,6 +159,66 @@ class MeetingDetailResponse(MeetingResponse):
 
     class Config:
         from_attributes = True
+
+# Team Member Schemas
+class TeamMemberBase(BaseModel):
+    name: str
+    email: str
+    role: Optional[str] = "Team Member"
+    status: Optional[str] = "Active"
+    avatar: Optional[str] = None
+
+class TeamMemberCreate(TeamMemberBase):
+    pass
+
+class TeamMemberUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    status: Optional[str] = None
+    avatar: Optional[str] = None
+
+class TeamMemberResponse(TeamMemberBase):
+    id: int
+    user_id: Optional[int] = None
+    active_tasks_count: Optional[int] = 0
+    completed_tasks_count: Optional[int] = 0
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+# Dedicated AI Assistant Feature Schemas
+class AISummarizeRequest(BaseModel):
+    notes: str
+    title: Optional[str] = ""
+
+class AISummarizeResponse(BaseModel):
+    summary: str
+    key_points: List[str] = []
+
+class AIActionItemsRequest(BaseModel):
+    notes: str
+    title: Optional[str] = ""
+
+class AIActionItemsResponse(BaseModel):
+    action_items: List[ExtractedActionItem] = []
+
+class AIHighlightsRequest(BaseModel):
+    notes: str
+    title: Optional[str] = ""
+
+class AIHighlightsResponse(BaseModel):
+    highlights: List[str] = []
+    decisions: List[str] = []
+
+class AIFollowUpsRequest(BaseModel):
+    notes: str
+    title: Optional[str] = ""
+
+class AIFollowUpsResponse(BaseModel):
+    follow_up_points: List[str] = []
+
 
 # Accountability Schemas
 class MemberAccountability(BaseModel):

@@ -20,14 +20,40 @@ export function Sidebar({ currentTab, setTab, currentUser, onLogout, isOpen, set
   const navItems = [
     { 
       id: 'dashboard', 
-      label: 'Command Center', 
+      label: 'Dashboard', 
       icon: LayoutDashboard,
       iconColor: 'text-[#B8FF00] group-hover:text-[#D4FF4D]',
     },
     { 
+      id: 'portal', 
+      label: 'Member Portal', 
+      icon: ShieldCheck,
+      iconColor: 'text-[#B8FF00] group-hover:text-[#D4FF4D]',
+    },
+    { 
       id: 'meetings', 
-      label: 'Meeting History', 
+      label: 'Meetings', 
       icon: Calendar,
+      iconColor: 'text-[#FFD166] group-hover:text-[#FFE199]',
+    },
+    { 
+      id: 'action-items', 
+      label: 'Action Items', 
+      icon: CheckSquare,
+      badge: overdueCount > 0 ? `${overdueCount}` : null,
+      badgeColor: 'bg-[#FF4D5A] text-white shadow-[0_0_10px_#FF4D5A]',
+      iconColor: 'text-[#FF7A00] group-hover:text-[#FFA04D]',
+    },
+    { 
+      id: 'tasks', 
+      label: 'Tasks Kanban', 
+      icon: Activity,
+      iconColor: 'text-[#B8FF00] group-hover:text-[#D4FF4D]',
+    },
+    { 
+      id: 'team', 
+      label: 'Team Members', 
+      icon: Users,
       iconColor: 'text-[#FFD166] group-hover:text-[#FFE199]',
     },
     { 
@@ -39,20 +65,6 @@ export function Sidebar({ currentTab, setTab, currentUser, onLogout, isOpen, set
       iconColor: 'text-[#FF2DA6] group-hover:text-[#FF6BC0]',
     },
     { 
-      id: 'tasks', 
-      label: 'Action Items', 
-      icon: CheckSquare,
-      badge: overdueCount > 0 ? `${overdueCount}` : null,
-      badgeColor: 'bg-[#FF4D5A] text-white shadow-[0_0_10px_#FF4D5A]',
-      iconColor: 'text-[#FF7A00] group-hover:text-[#FFA04D]',
-    },
-    { 
-      id: 'accountability', 
-      label: 'Accountability', 
-      icon: Users,
-      iconColor: 'text-[#B8FF00] group-hover:text-[#D4FF4D]',
-    },
-    { 
       id: 'insights', 
       label: 'AI Insights', 
       icon: Sparkles,
@@ -60,7 +72,7 @@ export function Sidebar({ currentTab, setTab, currentUser, onLogout, isOpen, set
     },
     { 
       id: 'settings', 
-      label: 'Settings', 
+      label: 'Profile / Settings', 
       icon: Settings,
       iconColor: 'text-[#9CA3AF] group-hover:text-white',
     },

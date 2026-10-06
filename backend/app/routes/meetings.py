@@ -49,8 +49,9 @@ def create_meeting(
         user_id=user_id,
         title=meeting_in.title,
         date=meeting_in.date,
-        participants=meeting_in.participants,
-        transcript=meeting_in.transcript,
+        participants=meeting_in.participants or "",
+        agenda=meeting_in.agenda or "",
+        transcript=meeting_in.transcript or "",
         summary=meeting_in.summary or ""
     )
     db.add(new_meeting)
@@ -97,6 +98,7 @@ def create_meeting(
         "title": new_meeting.title,
         "date": new_meeting.date,
         "participants": new_meeting.participants,
+        "agenda": new_meeting.agenda,
         "summary": new_meeting.summary,
         "transcript": new_meeting.transcript,
         "created_at": new_meeting.created_at,
@@ -126,6 +128,7 @@ def get_meetings(
             "title": m.title,
             "date": m.date,
             "participants": m.participants,
+            "agenda": m.agenda or "",
             "summary": m.summary,
             "created_at": m.created_at,
             "action_items_count": total,
@@ -173,6 +176,7 @@ def get_meeting(
         "title": meeting.title,
         "date": meeting.date,
         "participants": meeting.participants,
+        "agenda": meeting.agenda or "",
         "summary": meeting.summary,
         "transcript": meeting.transcript,
         "created_at": meeting.created_at,
@@ -182,6 +186,67 @@ def get_meeting(
         "decisions": meeting.decisions,
         "action_items": action_items_res
     }
+
+@router.put("/{id}", response_model=MeetingDetailResponse)
+def update_meeting(
+    id: int,
+    updates: dict,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_active_user_id)
+):
+    """
+    Updates a meeting's title, date, participants, agenda, transcript/notes, or summary.
+    """
+    meeting = db.query(Meeting).filter(Meeting.id == id, Meeting.user_id == user_id).first()
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    allowed_fields = ["title", "date", "participants", "agenda", "transcript", "summary"]
+    for field in allowed_fields:
+        if field in updates and updates[field] is not None:
+            setattr(meeting, field, updates[field])
+
+    db.commit()
+    db.refresh(meeting)
+
+    total = len(meeting.action_items)
+    completed = sum(1 for a in meeting.action_items if a.status == "Completed")
+    rate = round((completed / total * 100), 1) if total > 0 else 0.0
+
+    action_items_res = []
+    for a in meeting.action_items:
+        action_items_res.append({
+            "id": a.id,
+            "meeting_id": a.meeting_id,
+            "meeting_title": meeting.title,
+            "task": a.task,
+            "description": a.description,
+            "assignee": a.assignee,
+            "deadline": a.deadline,
+            "priority": a.priority,
+            "status": a.status,
+            "progress": a.progress,
+            "source_context": a.source_context,
+            "is_inferred_priority": a.is_inferred_priority,
+            "created_at": a.created_at
+        })
+
+    return {
+        "id": meeting.id,
+        "title": meeting.title,
+        "date": meeting.date,
+        "participants": meeting.participants,
+        "agenda": meeting.agenda or "",
+        "summary": meeting.summary,
+        "transcript": meeting.transcript,
+        "created_at": meeting.created_at,
+        "action_items_count": total,
+        "completion_rate": rate,
+        "discussion_points": meeting.discussion_points,
+        "decisions": meeting.decisions,
+        "action_items": action_items_res
+    }
+
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_meeting(
